@@ -1,0 +1,10 @@
+#ifndef UPARROW_H_
+#define UPARROW_H_
+
+const unsigned char uparrow [] = {
+0x08, 0x0C, 0xFE, 0xFF, 0xFE, 0x0C, 0x08, 0x00,
+};
+
+
+
+#endif
