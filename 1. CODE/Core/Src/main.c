@@ -25,6 +25,23 @@
 #include "ssd1306.h"
 #include "fonts.h"
 #include "mylan.h"
+
+#define FLASH_ADDR_PAGE_0 ((uint32_t)0x08000000)
+#define FLASH_ADDR_PAGE_1 ((uint32_t)0x08000400)
+#define FLASH_ADDR_PAGE_2 ((uint32_t)0x08000800)
+#define FLASH_ADDR_PAGE_126 ((uint32_t)0x0801F810)
+#define FLASH_ADDR_PAGE_127 ((uint32_t)0x0801FC00)
+
+#define FLASH_currentspeed__start_addr FLASH_ADDR_PAGE_126
+#define FLASH_currentspeed_end_addr FLASH_ADDR_PAGE_127 + FLASH_PAGE_SIZE
+
+#define FLASH_CW_start_addr FLASH_ADDR_PAGE_0
+#define FLASH_CW_end_addr FLASH_ADDR_PAGE_0 + FLASH_PAGE_SIZE
+
+#define FLASH_CCW_start_addr FLASH_ADDR_PAGE_1
+#define FLASH_CCW_end_addr FLASH_ADDR_PAGE_1 + FLASH_PAGE_SIZE
+
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,6 +64,11 @@ I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
+uint32_t startpage = FLASH_currentspeed__start_addr;
+uint32_t dataread;
+
+
+
 int defaultmenu_flag = 0;
 int Main_menu_flag = 0;
 int Freq_menu_flag = 0;
@@ -76,12 +98,21 @@ int T_Low = 300;
 
 
 //int speed[21] = {2000,1900,1800,1700,1600,1500,1400,1300,1200,1100,1000,900,800,700,600,500,400,300,200,200,0};
-float current_speed = 0.2;
+float current_speed;
+int speed = 1000;
 int N_currentspeed;
 int R_currentspeed;
 
 char V[10];
 char R[10];
+
+//Button debounce
+
+uint32_t previousMillis = 0;
+uint32_t currentMillis = 0;
+uint32_t counterOutside = 0; //For testing only
+uint32_t counterInside = 0; //For testing only
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -140,13 +171,13 @@ void defaultmenu()
 //{
 //	
 //}
-void speedmonitor(double T)
+void speedmonitor(float T)
 {
-		N_currentspeed = T/1;
-    R_currentspeed = (T - N_currentspeed)*10;
+		N_currentspeed = T/10;
+    R_currentspeed = fmod(T,10);
     
 }
-void calculatime(double speed)
+void calculatime(float speed)
 {
 	///////////////////////////////////////////////////////////////
 	// each turn of vitme equal to 5mm on journey
@@ -154,11 +185,40 @@ void calculatime(double speed)
 	// duty circle of each pulse = T_High + T_Low (T_ high = 300)
 	///////////////////////////////////////////////////////////////
 	
-	double t = (5/((speed*pow(10,3))/60))*pow(10,6); //microsecond
+	double t = (5/((speed)/(60*pow(10,6)))); //microsecond
 	T_Low = (t/4000)/2 ;
 	
 	
 }
+
+////////////////////////////////////////////////////////////////////////
+///
+///				EEPROM - FLASH save voletive variable
+///
+///
+///
+///////////////////////////////////////////////////////////////////////
+void FLASH_WritePage(uint32_t startPage,uint32_t endPage, uint32_t data32)
+{
+	HAL_FLASH_Unlock();
+	FLASH_EraseInitTypeDef EraseInit;
+	EraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
+	EraseInit.PageAddress = startpage;
+	EraseInit.NbPages = (endPage - startPage)/FLASH_PAGE_SIZE;
+	uint32_t PageError = 0;
+	HAL_FLASHEx_Erase(&EraseInit,&PageError);
+	HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, startPage, data32);
+}
+
+// Read addr and return addr's value to data variable 
+uint32_t FLASH_ReadData32(uint32_t addr)
+{
+	uint32_t data = *(__IO uint32_t *)(addr);
+	return data;
+}
+
+
+
 void test_1round()
 {
 	for (int i = 0; i<4000 ;i++)
@@ -358,7 +418,8 @@ void defaultHMI()
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   UNUSED(GPIO_Pin);
-  if (GPIO_Pin == GPIO_PIN_0) // FWD
+	currentMillis = HAL_GetTick();
+  if (GPIO_Pin == GPIO_PIN_0 && (currentMillis - previousMillis > 10)) // FWD
 	{
 		button_A = 1;
 		button_B = 0;
@@ -369,8 +430,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		CW_Stepper = 1;
 		CCW_Stepper = 0;
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
+		previousMillis = currentMillis;
 	} 
-	else if (GPIO_Pin == GPIO_PIN_1) // BWD
+	else if (GPIO_Pin == GPIO_PIN_1 && (currentMillis - previousMillis > 10)) // BWD
 	{
 		button_A = 0;
 		button_B = 1;
@@ -381,9 +443,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		CW_Stepper = 0;
 		CCW_Stepper = 1;
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
+		previousMillis = currentMillis;
 		
 	}
-	else if (GPIO_Pin == GPIO_PIN_2) //Stop button
+	else if (GPIO_Pin == GPIO_PIN_2 && (currentMillis - previousMillis > 100)) //Stop button
 	{
 		button_A = 0;
 		button_B = 0;
@@ -394,8 +457,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CW_limit = 0;
 		CW_Stepper = 0;
 		CCW_Stepper = 0;
+		previousMillis = currentMillis;
 	}
-	else if (GPIO_Pin == GPIO_PIN_3) // Menu
+	else if (GPIO_Pin == GPIO_PIN_3 && (currentMillis - previousMillis > 100)) // Menu
 	{
 		button_A = 0;
 		button_B = 0;
@@ -403,29 +467,48 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		button_D = 1;
 		button_E = 0;
 		button_F = 0;
-		
+		previousMillis = currentMillis;
 	}
-	else if (GPIO_Pin == GPIO_PIN_4) // Journey switch
+	else if (GPIO_Pin == GPIO_PIN_4 && (currentMillis - previousMillis > 100)) // Journey switch
 	{
 		button_A = 0;
 //		button_B = 0;
 		button_C = 0;
 		button_D = 0;
 		button_E = 1;
-//		button_F = 0;
+		button_F = 0;
 		CW_Stepper = 0;
 		CW_limit = 1;
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
+		previousMillis = currentMillis;
 	}
-	else if (GPIO_Pin == GPIO_PIN_5)
+	else if (GPIO_Pin == GPIO_PIN_5 &&  (currentMillis - previousMillis > 100))
 	{
 //		button_A = 0;
 		button_B = 0;
 		button_C = 0;
 		button_D = 0;
-//		button_E = 0;
+		button_E = 0;
 		button_F = 1;
 		CCW_Stepper = 0;
 		CCW_limit = 1;
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
+		previousMillis = currentMillis;
+	}
+	else if (GPIO_Pin == GPIO_PIN_5 && GPIO_Pin == GPIO_PIN_4)
+	{
+//		button_A = 0;
+//		button_B = 0;
+		button_C = 0;
+		button_D = 0;
+		button_E = 1;
+		button_F = 1;
+		CW_Stepper = 0;
+		CCW_limit = 1;
+		CW_limit = 1;
+		previousMillis = currentMillis;
 	}
 }
 
@@ -436,13 +519,13 @@ void Run_FWD()
 	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);
 	delay_us(T_Low);
 }
-void Run_BWD()
-{
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);
-	delay_us(T_Low);
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);
-	delay_us(T_Low);
-}
+//void Run_BWD()
+//{
+//	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);
+//	delay_us(T_Low);
+//	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);
+//	delay_us(T_Low);
+//}
 
 /*--------------------------------------------------------------------------------------------------------
 Des: This void is to determine what exacly the pointer and Interrupt service routine have done on each strigger
@@ -552,7 +635,7 @@ void Menu_handler()
 				button_C = 0;
 				button_D = 0;
 				button_F = 0;
-				calculatime(current_speed);
+				calculatime(speed);
 				while(button_A)
 				{	
 					Run_FWD();
@@ -568,7 +651,7 @@ void Menu_handler()
 				button_C = 0; 
 				button_D = 0;
 				button_E = 0;
-				calculatime(current_speed);
+				calculatime(speed);
 				while(button_B)
 				{
 					Run_FWD();
@@ -646,30 +729,42 @@ void Menu_handler()
 			}
 			if(button_A)
 			{
-				if(current_speed < 100.0)
+				if(speed < 4000)
 				{
-					current_speed += 0.1;
+					speed += 100;
+					current_speed = speed / 100;
+					speedmonitor(current_speed);
+					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();				
 					resetbutton();
 				} 
 				else 
 				{
-					current_speed = current_speed;
+					speed = speed;
+					current_speed = speed / 100;
+					speedmonitor(current_speed);
+					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
 			}
 			else if(button_B)
 			{
-				if(current_speed > 0.2)
+				if(speed > 200)
 				{
-					current_speed -= 0.1;
+					speed -= 100;			
+					current_speed = speed / 100;
+					speedmonitor(current_speed);
+					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
 				else
 				{
-					current_speed = current_speed;
+					speed = speed;
+					current_speed = speed / 100;
+					speedmonitor(current_speed);
+					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
@@ -736,7 +831,24 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-	HAL_TIM_Base_Start(&htim1);
+	
+	HAL_TIM_Base_Start(&htim1);	
+	
+//	FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, 2000);
+//	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_currentspeed_end_addr,speed);
+//	
+//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CW_end_addr, 2000);
+//	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CW_end_addr,speed);
+//	
+//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CCW_end_addr, 2000);
+//	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CCW_end_addr,speed);
+	
+	speed = FLASH_ReadData32(FLASH_currentspeed__start_addr);
+	button_E = FLASH_ReadData32(FLASH_CW_start_addr);
+	button_F = FLASH_ReadData32(FLASH_CCW_start_addr);
+	current_speed = speed / 100;
+	
+	
 	speedmonitor(current_speed);
 //	test_1round();
 	SSD1306_Init();
