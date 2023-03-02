@@ -32,14 +32,15 @@
 #define FLASH_ADDR_PAGE_126 ((uint32_t)0x0801F810)
 #define FLASH_ADDR_PAGE_127 ((uint32_t)0x0801FC00)
 
-#define FLASH_currentspeed__start_addr FLASH_ADDR_PAGE_126
-#define FLASH_currentspeed_end_addr FLASH_ADDR_PAGE_127 + FLASH_PAGE_SIZE
+#define FLASH_currentspeed_start_addr  FLASH_ADDR_PAGE_126 - FLASH_PAGE_SIZE
+#define FLASH_currentspeed_end_addr  FLASH_ADDR_PAGE_126 - 0x01
 
-#define FLASH_CW_start_addr FLASH_ADDR_PAGE_0
-#define FLASH_CW_end_addr FLASH_ADDR_PAGE_0 + FLASH_PAGE_SIZE
 
-#define FLASH_CCW_start_addr FLASH_ADDR_PAGE_1
-#define FLASH_CCW_end_addr FLASH_ADDR_PAGE_1 + FLASH_PAGE_SIZE
+#define FLASH_CW_start_addr FLASH_ADDR_PAGE_126
+#define FLASH_CW_end_addr FLASH_ADDR_PAGE_127 - 0x01
+
+//#define FLASH_CCW_start_addr FLASH_ADDR_PAGE_1
+//#define FLASH_CCW_end_addr FLASH_ADDR_PAGE_1 + FLASH_PAGE_SIZE
 
 
 /* USER CODE END Includes */
@@ -64,8 +65,8 @@ I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
-uint32_t startpage = FLASH_currentspeed__start_addr;
-uint32_t dataread;
+//uint32_t startpage = FLASH_currentspeed__start_addr;
+//uint32_t dataread;
 
 
 
@@ -97,7 +98,7 @@ int T_High = 300;
 int T_Low = 300;
 
 
-//int speed[21] = {2000,1900,1800,1700,1600,1500,1400,1300,1200,1100,1000,900,800,700,600,500,400,300,200,200,0};
+// speed variables
 float current_speed;
 int speed = 1000;
 int N_currentspeed;
@@ -203,8 +204,9 @@ void FLASH_WritePage(uint32_t startPage,uint32_t endPage, uint32_t data32)
 	HAL_FLASH_Unlock();
 	FLASH_EraseInitTypeDef EraseInit;
 	EraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
-	EraseInit.PageAddress = startpage;
-	EraseInit.NbPages = (endPage - startPage)/FLASH_PAGE_SIZE;
+	EraseInit.PageAddress = startPage;
+	EraseInit.NbPages = 1;
+//	EraseInit.NbPages = (endPage - startPage)/(FLASH_PAGE_SIZE - 1);
 	uint32_t PageError = 0;
 	HAL_FLASHEx_Erase(&EraseInit,&PageError);
 	HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, startPage, data32);
@@ -419,7 +421,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   UNUSED(GPIO_Pin);
 	currentMillis = HAL_GetTick();
-  if (GPIO_Pin == GPIO_PIN_0 && (currentMillis - previousMillis > 10)) // FWD
+  if (GPIO_Pin == GPIO_PIN_0 && (currentMillis - previousMillis > 100)) // FWD
 	{
 		button_A = 1;
 		button_B = 0;
@@ -432,7 +434,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
 		previousMillis = currentMillis;
 	} 
-	else if (GPIO_Pin == GPIO_PIN_1 && (currentMillis - previousMillis > 10)) // BWD
+	else if (GPIO_Pin == GPIO_PIN_1 && (currentMillis - previousMillis > 100)) // BWD
 	{
 		button_A = 0;
 		button_B = 1;
@@ -442,6 +444,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CW_limit = 0;
 		CW_Stepper = 0;
 		CCW_Stepper = 1;
+//		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
 		previousMillis = currentMillis;
 		
@@ -472,44 +475,41 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	else if (GPIO_Pin == GPIO_PIN_4 && (currentMillis - previousMillis > 100)) // Journey switch
 	{
 		button_A = 0;
-//		button_B = 0;
-		button_C = 0;
-		button_D = 0;
-		button_E = 1;
-		button_F = 0;
-		CW_Stepper = 0;
-		CW_limit = 1;
-		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
-		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
-		previousMillis = currentMillis;
-	}
-	else if (GPIO_Pin == GPIO_PIN_5 &&  (currentMillis - previousMillis > 100))
-	{
-//		button_A = 0;
 		button_B = 0;
 		button_C = 0;
 		button_D = 0;
-		button_E = 0;
+		button_E = 1;
+//		button_F = 0;
+		CW_Stepper = 0;
+		CW_limit = 1;
+//		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		previousMillis = currentMillis;
+	}
+	else if (GPIO_Pin == GPIO_PIN_5 &&  (currentMillis - previousMillis > 100))// Journey switch 2
+	{
+		button_A = 0;
+		button_B = 0;
+		button_C = 0;
+		button_D = 0;
+//		button_E = 0;
 		button_F = 1;
 		CCW_Stepper = 0;
 		CCW_limit = 1;
-		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
-		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		previousMillis = currentMillis;
 	}
-	else if (GPIO_Pin == GPIO_PIN_5 && GPIO_Pin == GPIO_PIN_4)
-	{
-//		button_A = 0;
-//		button_B = 0;
-		button_C = 0;
-		button_D = 0;
-		button_E = 1;
-		button_F = 1;
-		CW_Stepper = 0;
-		CCW_limit = 1;
-		CW_limit = 1;
-		previousMillis = currentMillis;
-	}
+//	else if (GPIO_Pin == GPIO_PIN_5 && GPIO_Pin == GPIO_PIN_4)
+//	{
+////		button_A = 0;
+////		button_B = 0;
+//		button_C = 0;
+//		button_D = 0;
+//		button_E = 1;
+//		button_F = 1;
+//		CW_Stepper = 0;
+//		CCW_limit = 1;
+//		CW_limit = 1;
+//		previousMillis = currentMillis;
+//	}
 }
 
 void Run_FWD()
@@ -636,7 +636,7 @@ void Menu_handler()
 				button_D = 0;
 				button_F = 0;
 				calculatime(speed);
-				while(button_A)
+				while(CW_Stepper)
 				{	
 					Run_FWD();
 				}
@@ -652,7 +652,7 @@ void Menu_handler()
 				button_D = 0;
 				button_E = 0;
 				calculatime(speed);
-				while(button_B)
+				while(CCW_Stepper)
 				{
 					Run_FWD();
 				}
@@ -692,6 +692,8 @@ void Menu_handler()
 				button_C = 0;
 				button_D = 0;
 				button_F = 0;
+//				FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+//				FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				while (button_E)
 				{
 					CW_Stepper = 0;
@@ -706,6 +708,8 @@ void Menu_handler()
 				button_C = 0;
 				button_D = 0;
 				button_E = 0;
+				
+//				FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				while (button_F)
 				{
 					CCW_Stepper = 0;
@@ -734,7 +738,7 @@ void Menu_handler()
 					speed += 100;
 					current_speed = speed / 100;
 					speedmonitor(current_speed);
-					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
+					FLASH_WritePage(FLASH_currentspeed_start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();				
 					resetbutton();
 				} 
@@ -743,7 +747,7 @@ void Menu_handler()
 					speed = speed;
 					current_speed = speed / 100;
 					speedmonitor(current_speed);
-					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
+					FLASH_WritePage(FLASH_currentspeed_start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
@@ -755,7 +759,7 @@ void Menu_handler()
 					speed -= 100;			
 					current_speed = speed / 100;
 					speedmonitor(current_speed);
-					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
+					FLASH_WritePage(FLASH_currentspeed_start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
@@ -764,7 +768,7 @@ void Menu_handler()
 					speed = speed;
 					current_speed = speed / 100;
 					speedmonitor(current_speed);
-					FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, speed);
+					FLASH_WritePage(FLASH_currentspeed_start_addr, FLASH_currentspeed_end_addr, speed);
 					SpeedHMI();
 					resetbutton();
 				}
@@ -837,15 +841,15 @@ int main(void)
 //	FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, 2000);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_currentspeed_end_addr,speed);
 //	
-//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CW_end_addr, 2000);
+		FLASH_WritePage(FLASH_CW_start_addr, FLASH_CW_end_addr, 0x01);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CW_end_addr,speed);
 //	
-//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CCW_end_addr, 2000);
+//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CCW_end_addr, 0);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CCW_end_addr,speed);
-	
-	speed = FLASH_ReadData32(FLASH_currentspeed__start_addr);
-	button_E = FLASH_ReadData32(FLASH_CW_start_addr);
-	button_F = FLASH_ReadData32(FLASH_CCW_start_addr);
+	button_E = FLASH_ReadData32(FLASH_CW_start_addr);	
+	speed = FLASH_ReadData32(FLASH_currentspeed_start_addr);
+
+//	button_F = FLASH_ReadData32(FLASH_CCW_start_addr);
 	current_speed = speed / 100;
 	
 	
