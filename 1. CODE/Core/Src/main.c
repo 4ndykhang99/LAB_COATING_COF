@@ -26,21 +26,24 @@
 #include "fonts.h"
 #include "mylan.h"
 
-#define FLASH_ADDR_PAGE_0 ((uint32_t)0x08000000)
-#define FLASH_ADDR_PAGE_1 ((uint32_t)0x08000400)
-#define FLASH_ADDR_PAGE_2 ((uint32_t)0x08000800)
+#define FLASH_ADDR_PAGE_122 ((uint32_t)0x0800E810)
+#define FLASH_ADDR_PAGE_123 ((uint32_t)0x0800EC10)
+#define FLASH_ADDR_PAGE_124 ((uint32_t)0x0801F010)
+#define FLASH_ADDR_PAGE_125 ((uint32_t)0x0801F410)
 #define FLASH_ADDR_PAGE_126 ((uint32_t)0x0801F810)
 #define FLASH_ADDR_PAGE_127 ((uint32_t)0x0801FC00)
 
-#define FLASH_currentspeed_start_addr  FLASH_ADDR_PAGE_126 - FLASH_PAGE_SIZE
-#define FLASH_currentspeed_end_addr  FLASH_ADDR_PAGE_126 - 0x01
+
+#define FLASH_currentspeed_start_addr  FLASH_ADDR_PAGE_126
+#define FLASH_currentspeed_end_addr  FLASH_ADDR_PAGE_127 + 0x400 - 0x01
 
 
-#define FLASH_CW_start_addr FLASH_ADDR_PAGE_126
-#define FLASH_CW_end_addr FLASH_ADDR_PAGE_127 - 0x01
+#define FLASH_CW_start_addr FLASH_ADDR_PAGE_124
+#define FLASH_CW_end_addr FLASH_ADDR_PAGE_125 + 0x400 - 0x01
 
-//#define FLASH_CCW_start_addr FLASH_ADDR_PAGE_1
-//#define FLASH_CCW_end_addr FLASH_ADDR_PAGE_1 + FLASH_PAGE_SIZE
+#define FLASH_CCW_start_addr FLASH_ADDR_PAGE_122
+#define FLASH_CCW_end_addr FLASH_ADDR_PAGE_123 + 0x400 - 0x01 
+
 
 
 /* USER CODE END Includes */
@@ -205,11 +208,12 @@ void FLASH_WritePage(uint32_t startPage,uint32_t endPage, uint32_t data32)
 	FLASH_EraseInitTypeDef EraseInit;
 	EraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
 	EraseInit.PageAddress = startPage;
-	EraseInit.NbPages = 1;
-//	EraseInit.NbPages = (endPage - startPage)/(FLASH_PAGE_SIZE - 1);
+//	EraseInit.NbPages = 1;
+	EraseInit.NbPages = (endPage - startPage + 0x01)/(FLASH_PAGE_SIZE);
 	uint32_t PageError = 0;
 	HAL_FLASHEx_Erase(&EraseInit,&PageError);
 	HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, startPage, data32);
+	HAL_FLASH_Lock();
 }
 
 // Read addr and return addr's value to data variable 
@@ -432,6 +436,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		CW_Stepper = 1;
 		CCW_Stepper = 0;
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		
 		previousMillis = currentMillis;
 	} 
 	else if (GPIO_Pin == GPIO_PIN_1 && (currentMillis - previousMillis > 100)) // BWD
@@ -444,8 +451,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CW_limit = 0;
 		CW_Stepper = 0;
 		CCW_Stepper = 1;
-//		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		
+		
 		previousMillis = currentMillis;
 		
 	}
@@ -460,6 +470,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CW_limit = 0;
 		CW_Stepper = 0;
 		CCW_Stepper = 0;
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		previousMillis = currentMillis;
 	}
 	else if (GPIO_Pin == GPIO_PIN_3 && (currentMillis - previousMillis > 100)) // Menu
@@ -470,31 +482,37 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		button_D = 1;
 		button_E = 0;
 		button_F = 0;
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		previousMillis = currentMillis;
+
 	}
 	else if (GPIO_Pin == GPIO_PIN_4 && (currentMillis - previousMillis > 100)) // Journey switch
 	{
-		button_A = 0;
+//		button_A = 0;
 		button_B = 0;
 		button_C = 0;
 		button_D = 0;
 		button_E = 1;
-//		button_F = 0;
+		button_F = 0;
 		CW_Stepper = 0;
 		CW_limit = 1;
-//		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 		previousMillis = currentMillis;
 	}
 	else if (GPIO_Pin == GPIO_PIN_5 &&  (currentMillis - previousMillis > 100))// Journey switch 2
 	{
 		button_A = 0;
-		button_B = 0;
+//		button_B = 0;
 		button_C = 0;
 		button_D = 0;
-//		button_E = 0;
+		button_E = 0;
 		button_F = 1;
 		CCW_Stepper = 0;
 		CCW_limit = 1;
+		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		previousMillis = currentMillis;
 	}
 //	else if (GPIO_Pin == GPIO_PIN_5 && GPIO_Pin == GPIO_PIN_4)
@@ -628,9 +646,10 @@ void Menu_handler()
 			}
 			else if (button_A)
 			{	
-				CW_Stepper = 1;
-				CCW_Stepper = 0;
+//				CW_Stepper = 1;
+//				CCW_Stepper = 0;
 				CCW_limit = 0;
+				button_A = 0;
 				button_B = 0;
 				button_C = 0;
 				button_D = 0;
@@ -644,10 +663,11 @@ void Menu_handler()
 			}
 			else if (button_B)
 			{
-				CW_Stepper = 0;
-				CCW_Stepper = 1;
+//				CW_Stepper = 0;
+//				CCW_Stepper = 1;
 				CW_limit = 0;
 				button_A = 0;
+				button_B = 0;
 				button_C = 0; 
 				button_D = 0;
 				button_E = 0;
@@ -670,11 +690,13 @@ void Menu_handler()
 				{
 					button_E = 1;
 					CW_limit = 0;
+					FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 				}
 				else if(CCW_limit)
 				{
 					button_F = 1;
-					CCW_limit =0;
+					CCW_limit = 0;
+					FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				}
 				else
 				{
@@ -682,18 +704,18 @@ void Menu_handler()
 					button_F = 0;
 					CW_limit = 0;
 					CCW_limit = 0;
+					FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
+					FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				}
 			}
 			else if (button_E)
 			{
 				CW_limit = 1;
-				button_A = 0;
+//				button_A = 0;
 				button_B = 0; 
 				button_C = 0;
 				button_D = 0;
 				button_F = 0;
-//				FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
-//				FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				while (button_E)
 				{
 					CW_Stepper = 0;
@@ -704,12 +726,10 @@ void Menu_handler()
 			{
 				CCW_limit = 1;
 				button_A = 0;
-				button_B = 0; 
+//				button_B = 0; 
 				button_C = 0;
 				button_D = 0;
 				button_E = 0;
-				
-//				FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 				while (button_F)
 				{
 					CCW_Stepper = 0;
@@ -841,19 +861,13 @@ int main(void)
 //	FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, 2000);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_currentspeed_end_addr,speed);
 //	
-		FLASH_WritePage(FLASH_CW_start_addr, FLASH_CW_end_addr, 0x01);
+//		FLASH_WritePage(FLASH_CW_start_addr, FLASH_CW_end_addr, 0x01);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CW_end_addr,speed);
 //	
-//		FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_CCW_end_addr, 0);
+//		FLASH_WritePage(FLASH_CCW_start_addr, FLASH_CCW_end_addr, 0x01);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CCW_end_addr,speed);
-	button_E = FLASH_ReadData32(FLASH_CW_start_addr);	
-	speed = FLASH_ReadData32(FLASH_currentspeed_start_addr);
-
-//	button_F = FLASH_ReadData32(FLASH_CCW_start_addr);
-	current_speed = speed / 100;
 	
 	
-	speedmonitor(current_speed);
 //	test_1round();
 	SSD1306_Init();
 	SSD1306_Clear();
@@ -866,6 +880,20 @@ int main(void)
 	SSD1306_GotoXY(8,52);
 	SSD1306_Puts("A Greener World",&Font_7x10,0x01);
 	SSD1306_UpdateScreen();
+	
+	
+	
+	button_E = FLASH_ReadData32(FLASH_CW_start_addr);
+	HAL_Delay(1000);
+	button_F = FLASH_ReadData32(FLASH_CCW_start_addr);
+	HAL_Delay(1000);
+	speed = FLASH_ReadData32(FLASH_currentspeed_start_addr);
+
+	
+	current_speed = speed / 100;
+	
+	
+	speedmonitor(current_speed);
 //	HAL_Delay(5000);
 	
 	
