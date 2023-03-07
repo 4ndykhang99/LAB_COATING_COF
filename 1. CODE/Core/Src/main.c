@@ -861,10 +861,10 @@ int main(void)
 //	FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, 2000);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_currentspeed_end_addr,speed);
 //	
-//		FLASH_WritePage(FLASH_CW_start_addr, FLASH_CW_end_addr, 0x01);
+//		FLASH_WritePage(FLASH_CW_start_addr, FLASH_CW_end_addr, 0x00);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CW_end_addr,speed);
 //	
-//		FLASH_WritePage(FLASH_CCW_start_addr, FLASH_CCW_end_addr, 0x01);
+//		FLASH_WritePage(FLASH_CCW_start_addr, FLASH_CCW_end_addr, 0x00);
 //	FLASH_WritePage(FLASH_currentspeed__start_addr,FLASH_CCW_end_addr,speed);
 	
 	
@@ -1061,8 +1061,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  /*Configure GPIO pins : PA1 PA2 PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -1079,6 +1079,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 3, 0);
