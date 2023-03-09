@@ -28,6 +28,7 @@ menu\ssd1306.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 menu\ssd1306.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 menu\ssd1306.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 menu\ssd1306.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
+menu\ssd1306.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 menu\ssd1306.o: ../Core/Inc/fonts.h
 menu\ssd1306.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 menu\ssd1306.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h

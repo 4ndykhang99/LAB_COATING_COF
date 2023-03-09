@@ -6,6 +6,7 @@
 "menu\main.o"
 "menu\stm32f1xx_it.o"
 "menu\stm32f1xx_hal_msp.o"
+"menu\modbus_crc.o"
 "menu\stm32f1xx_hal_gpio_ex.o"
 "menu\stm32f1xx_hal_i2c.o"
 "menu\stm32f1xx_hal.o"
@@ -20,6 +21,7 @@
 "menu\stm32f1xx_hal_exti.o"
 "menu\stm32f1xx_hal_tim.o"
 "menu\stm32f1xx_hal_tim_ex.o"
+"menu\stm32f1xx_hal_uart.o"
 "menu\system_stm32f1xx.o"
 --strict --scatter "Menu\Menu.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols

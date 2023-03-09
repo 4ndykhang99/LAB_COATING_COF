@@ -25,6 +25,7 @@
 #include "ssd1306.h"
 #include "fonts.h"
 #include "mylan.h"
+#include "modbus_crc.h"
 
 #define FLASH_ADDR_PAGE_122 ((uint32_t)0x0800E810)
 #define FLASH_ADDR_PAGE_123 ((uint32_t)0x0800EC10)
@@ -66,6 +67,8 @@
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
+
+UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 //uint32_t startpage = FLASH_currentspeed__start_addr;
@@ -117,6 +120,13 @@ uint32_t currentMillis = 0;
 uint32_t counterOutside = 0; //For testing only
 uint32_t counterInside = 0; //For testing only
 
+// COF Variable
+uint8_t TxData[8];
+uint8_t RxData[32];
+
+uint16_t *Data;
+int weight;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -124,6 +134,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 // a function to get microsecond
@@ -545,6 +556,43 @@ void Run_FWD()
 //	delay_us(T_Low);
 //}
 
+
+/*------------------------------------------------------------------------
+COF Measurament function
+1. send hex via Rs485 to W100
+2. Uart IT detect hex feedback from W100
+3. Read date in the hex recieved
+
+
+
+*/
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	
+  weight = RxData[3] << 8 | RxData [4];
+//	Data[1] = RxData[5] << 8 | RxData [6];
+//	Data[2] = RxData[7] << 8 | RxData [8];	
+//	Data[3] = RxData [0];
+//	Data[4] = RxData[10]<< 8 | RxData [11];
+}
+void SendData()
+{
+		TxData[0] = 0x01; //Slave ad
+		TxData[1] = 0x03; //function hex for read holding the register
+		TxData[2] = 0x00; 
+		TxData[3] =	0x0A; // read 40011 	
+		TxData[4] = 0x00;
+		TxData[5] = 0x01; // the number of registers
+		
+		//Calculating CRC 
+		uint16_t crc = crc16(TxData, 6);
+		TxData[6] = crc&0xFF;
+		TxData[7] = (crc>>8)&0xFF;	
+		HAL_UART_Transmit(&huart1, TxData, 8, 1000);
+}
+
+
+
 /*--------------------------------------------------------------------------------------------------------
 Des: This void is to determine what exacly the pointer and Interrupt service routine have done on each strigger
 
@@ -806,7 +854,16 @@ void Menu_handler()
 		HAL_Delay(100);
 		while(COF_menu_flag)
 		{
-				if(button_C)
+			if(button_A)
+			{
+				COFHMI();
+				while(button_A)
+				{
+					SendData();
+					HAL_Delay(500);
+				}
+			}
+			if(button_C)
 			{
 				Mainmenu();
 				resetbutton();
@@ -854,8 +911,9 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_TIM1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	
+	HAL_UARTEx_ReceiveToIdle_IT(&huart1, RxData, 32);
 	HAL_TIM_Base_Start(&htim1);	
 	
 //	FLASH_WritePage(FLASH_currentspeed__start_addr, FLASH_currentspeed_end_addr, 2000);
@@ -1030,6 +1088,39 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 

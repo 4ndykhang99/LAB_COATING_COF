@@ -28,9 +28,11 @@ menu\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 menu\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 menu\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 menu\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
+menu\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 menu\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 menu\main.o: ../Core/Inc/ssd1306.h
 menu\main.o: ../Core/Inc/fonts.h
 menu\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 menu\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 menu\main.o: ../Core/Inc/mylan.h
+menu\main.o: ../Core/Inc/modbus_crc.h
