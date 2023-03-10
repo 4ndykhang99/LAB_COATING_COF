@@ -125,7 +125,8 @@ uint8_t TxData[8];
 uint8_t RxData[32];
 
 uint16_t *Data;
-int weight;
+int weight = 0;
+char strWeight[10];
 
 /* USER CODE END PV */
 
@@ -292,13 +293,33 @@ void menuHMI_selection(uint16_t speed_adjustment, uint16_t COF)
 }
 void COFHMI()
 {
-	SSD1306_Clear();
+//	SSD1306_Clear();
 	SSD1306_GotoXY(14,0);
 	SSD1306_Puts("COF Measurament",&Font_7x10,0x01);
 	SSD1306_GotoXY(0,11);
 	SSD1306_Puts("--------------------",&Font_7x10,0x01);
 	SSD1306_GotoXY(0,24);
-	SSD1306_Puts("AVG COF =",&Font_11x18,0x01);
+	SSD1306_Puts("COF= ",&Font_11x18,0x01);
+	sprintf (strWeight, "%d", weight);
+	if(weight<10)
+	{
+		SSD1306_GotoXY(56,24);
+		SSD1306_Puts("   ",&Font_11x18,0x01);
+		SSD1306_GotoXY(89,24);
+	}
+	else if (weight>10 && weight<100)
+	{
+		SSD1306_GotoXY(56,24);
+		SSD1306_Puts("  ",&Font_11x18,0x01);
+		SSD1306_GotoXY(78,24);
+	}
+	else if (weight>100 && weight<1000)
+	{
+		SSD1306_GotoXY(56,24);
+		SSD1306_Puts(" ",&Font_11x18,0x01);
+		SSD1306_GotoXY(67,24);
+	}
+	SSD1306_Puts(strWeight ,&Font_11x18,0x01);
 	SSD1306_GotoXY(80,24);
 //	sprintf(F, "%d", Freq); //convert int to String type 
 //	SSD1306_Puts(F ,&Font_11x18,0x01);
@@ -446,7 +467,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CCW_limit = 0;
 		CW_Stepper = 1;
 		CCW_Stepper = 0;
-		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
 		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 		
@@ -462,7 +482,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 //		CW_limit = 0;
 		CW_Stepper = 0;
 		CCW_Stepper = 1;
-		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
+		
 		FLASH_WritePage(FLASH_CCW_start_addr,FLASH_CCW_end_addr,button_F);
 		FLASH_WritePage(FLASH_CW_start_addr,FLASH_CW_end_addr,button_E);
 		
@@ -566,6 +586,13 @@ COF Measurament function
 
 
 */
+void Run_SetHome()
+{
+	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);
+	delay_us(10);
+	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);
+	delay_us(10);
+}
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	
@@ -589,6 +616,20 @@ void SendData()
 		TxData[6] = crc&0xFF;
 		TxData[7] = (crc>>8)&0xFF;	
 		HAL_UART_Transmit(&huart1, TxData, 8, 1000);
+}
+void SetHome()
+{	
+	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
+	while (!CW_limit)
+	{
+		Run_SetHome();
+	}
+	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
+	for(int i = 0; i <96000;i++)
+	{
+		Run_SetHome();
+	}
+
 }
 
 
@@ -703,6 +744,7 @@ void Menu_handler()
 				button_D = 0;
 				button_F = 0;
 				calculatime(speed);
+				HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
 				while(CW_Stepper)
 				{	
 					Run_FWD();
@@ -720,6 +762,7 @@ void Menu_handler()
 				button_D = 0;
 				button_E = 0;
 				calculatime(speed);
+				HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_RESET);
 				while(CCW_Stepper)
 				{
 					Run_FWD();
@@ -848,8 +891,10 @@ void Menu_handler()
 			}
 		}
 	}
-	if(COF_menu_flag) // COF monitor menu access
+ 	if(COF_menu_flag) // COF monitor menu access
 	{
+		SSD1306_Clear();
+		
 		COFHMI();
 		HAL_Delay(100);
 		while(COF_menu_flag)
@@ -859,9 +904,16 @@ void Menu_handler()
 				COFHMI();
 				while(button_A)
 				{
+					HAL_UARTEx_ReceiveToIdle_IT(&huart1, RxData, 32);
 					SendData();
-					HAL_Delay(500);
+					HAL_Delay(200);
+					COFHMI();
 				}
+			}
+			if(button_B)
+			{
+				HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7, GPIO_PIN_SET);
+				SetHome();
 			}
 			if(button_C)
 			{
